@@ -1,5 +1,5 @@
 const WebSocket = require("ws");
-const { log } = require("./utils");
+const { log } = require("../utils");
 
 class WebSocketService {
   constructor() {

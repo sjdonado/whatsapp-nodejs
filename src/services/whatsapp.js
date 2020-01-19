@@ -1,6 +1,6 @@
 const WebSocketService = require("./ws");
 const cryptoService = require("./crypto");
-const { qrToFile } = require("./utils");
+const { qrToFile } = require("../utils");
 
 class WhatsappService {
   constructor() {
@@ -80,7 +80,7 @@ class WhatsappService {
               this.connectionOpts.browserToken = browserToken;
               this.connectionOpts.me = wid;
 
-              console.log(this.connectionOpts)
+              console.log(this.connectionOpts);
 
               break;
             }
