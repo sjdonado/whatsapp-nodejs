@@ -5,6 +5,7 @@ const log = (...args) => {
 };
 
 const qrToFile = (txt = "") => {
+  log("QR TO FILE", txt);
   qr.toFile("./qr.png", txt, console.log);
 };
 
