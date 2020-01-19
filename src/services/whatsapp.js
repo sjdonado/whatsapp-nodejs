@@ -37,10 +37,7 @@ class WhatsAppService {
    * Send a "ping" message every 25 seconds.
    */
   ping() {
-    setTimeout(() => {
-      this.ws.send("?,,");
-      this.ping();
-    }, 25000);
+    setTimeout(() => this.ws.send("?,,") && this.ping(), 25000);
   }
 
   /**
