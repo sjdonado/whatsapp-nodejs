@@ -1,6 +1,9 @@
-const WebSocketService = require("./ws");
-const cryptoService = require("./crypto");
-const { log, qrToFile } = require("../utils");
+const WebSocketService = require('./ws');
+const cryptoService = require('./crypto');
+const {
+  log,
+  showQRCode,
+} = require('../utils');
 
 /**
  * WhatsApp Service
@@ -38,7 +41,7 @@ class WhatsAppService {
    */
   ping() {
     setTimeout(() => {
-      this.ws.send("?,,");
+      this.ws.send('?,,');
       this.ping();
     }, 25000);
   }
@@ -47,8 +50,8 @@ class WhatsAppService {
    * Handle a received message.
    * @param {String} message
    */
-  handleMessage(message = "") {
-    let [tag, ...content] = message.split(",");
+  handleMessage(message = '') {
+    let [tag, ...content] = message.split(',');
     content = content.join();
 
     if (this.messagesQueue[tag]) {
@@ -57,14 +60,14 @@ class WhatsAppService {
       const pend = this.messagesQueue[tag];
 
       switch (pend.desc) {
-        case "_login": {
+        case '_login': {
           this.generateQR(content);
           break;
         }
-        case "_status": // TODO
+        case '_status': // TODO
           break;
 
-        case "_restoresession": // TODO
+        case '_restoresession': // TODO
           break;
       }
     } else {
@@ -77,21 +80,21 @@ class WhatsAppService {
           const [name, payload] = obj;
 
           switch (name) {
-            case "Conn": {
+            case 'Conn': {
               this.ping();
               this.processConn(payload);
               break;
             }
-            case "Stream": {
+            case 'Stream': {
               break;
             }
-            case "Props": {
+            case 'Props': {
               break;
             }
           }
         }
       } catch (e) {
-        if (content !== "") {
+        if (content !== '') {
           // TODO binray content, decrypt message
         }
       }
@@ -113,17 +116,21 @@ class WhatsAppService {
   generateQR(content) {
     this.loginInfo.serverRef = JSON.parse(content).ref;
 
-    const { publicKey, secretKey } = cryptoService.generateKeys();
+    const {
+      publicKey,
+      secretKey,
+    } = cryptoService.generateKeys();
+
     this.loginInfo.secretKey = Buffer.from(secretKey);
     this.loginInfo.publicKey = Buffer.from(publicKey);
 
-    const qrCode = [
+    const qrCodeText = [
       this.loginInfo.serverRef,
-      this.loginInfo.publicKey.toString("base64"),
-      this.loginInfo.clientId
-    ].join(",");
+      this.loginInfo.publicKey.toString('base64'),
+      this.loginInfo.clientId,
+    ].join(',');
 
-    qrToFile(qrCode);
+    showQRCode(qrCodeText);
   }
 
   /**
@@ -137,25 +144,24 @@ class WhatsAppService {
     serverToken,
     sharedSecret,
     sharedSecretExpanded,
-    wid
+    wid,
   }) {
     this.connectionOpts.clientToken = clientToken;
     this.connectionOpts.serverToken = serverToken;
     this.connectionOpts.browserToken = browserToken;
     this.connectionOpts.me = wid;
 
-    this.connectionOpts.secret = Buffer.from(secret, "base64");
+    this.connectionOpts.secret = Buffer.from(secret, 'base64');
     // TODO this.connectionOpts.sharedSecret
     // TODO this.connectionOpts.sharedSecretExpanded
 
     // TODO
 
-    log("PROCESS CONN");
-    log(
-      Object.keys(this.connectionOpts)
-        .map(k => `${k} = ${this.connectionOpts[k]}`)
-        .push("\n")
-        .join("\n")
+    log('PROCESS CONN');
+    log(Object.keys(this.connectionOpts)
+        .map((k) => `${k} = ${this.connectionOpts[k]}`)
+        .push('\n')
+        .join('\n'),
     );
   }
 
@@ -166,16 +172,14 @@ class WhatsAppService {
    * 2. Send the message `<message_tag>,["admin","init",[0,4,315],["Windows","Chrome","10"],"<client_id>",true]`
    */
   init() {
-    this.loginInfo.clientId = cryptoService.randomBytes().toString("base64");
+    this.loginInfo.clientId = cryptoService.randomBytes().toString('base64');
     const messageTag = Date.now();
 
     this.messagesQueue[messageTag] = {
-      desc: "_login"
+      desc: '_login',
     };
 
-    this.ws.send(
-      `${messageTag},["admin","init",[0,4,315],["Windows","Chrome","10"],"${this.loginInfo.clientId}",true]`
-    );
+    this.ws.send(`${messageTag},["admin","init",[0,4,315],["Windows","Chrome","10"],"${this.loginInfo.clientId}",true]`);
   }
 
   /**
@@ -183,10 +187,10 @@ class WhatsAppService {
    */
   start() {
     this.ws = new WebSocketService();
-    this.ws.on("open", () => this.init());
-    this.ws.on("close", () => null);
-    this.ws.on("error", () => null);
-    this.ws.on("message", this.handleMessage.bind(this));
+    this.ws.on('open', () => this.init());
+    this.ws.on('close', () => null);
+    this.ws.on('error', () => null);
+    this.ws.on('message', this.handleMessage.bind(this));
   }
 }
 

@@ -1,5 +1,7 @@
-const WebSocket = require("ws");
-const { log } = require("../utils");
+const WebSocket = require('ws');
+const {
+  log,
+} = require('../utils');
 
 /**
  * WebSocketService.
@@ -8,8 +10,8 @@ const { log } = require("../utils");
  */
 class WebSocketService {
   constructor() {
-    this.ws = new WebSocket("wss://web.whatsapp.com/ws", {
-      headers: { Origin: "https://web.whatsapp.com" }
+    this.ws = new WebSocket('wss://web.whatsapp.com/ws', {
+      headers: { Origin: 'https://web.whatsapp.com' }
     });
   }
 
@@ -19,7 +21,7 @@ class WebSocketService {
    */
   on(ev, fn) {
     this.ws.on(ev, (...args) => {
-      log(ev.toUpperCase(), ...args, "\n");
+      log(ev.toUpperCase(), ...args, '\n');
       fn(...args);
     });
   }
@@ -29,7 +31,7 @@ class WebSocketService {
    * @param {any} data
    */
   send(data) {
-    log("SEND", data);
+    log('SEND', data);
     this.ws.send(data);
   }
 }
