@@ -19,7 +19,7 @@ class WebSocketService {
    */
   on(ev, fn) {
     this.ws.on(ev, (...args) => {
-      log(ev.toUpperCase(), ...args);
+      log(ev.toUpperCase(), ...args, "\n");
       fn(...args);
     });
   }
