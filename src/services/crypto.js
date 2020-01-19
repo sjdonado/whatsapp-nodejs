@@ -1,22 +1,43 @@
 const crypto = require("crypto");
 const nacl = require("tweetnacl");
 
+const AES_BLOCK_SIZE = 16;
+
+/**
+ * CryptoService
+ *
+ * @author krthr
+ */
 class CryptoService {
-  generateBytes(n = 16) {
+  randomBytes(n = 16) {
     return crypto.randomBytes(n);
   }
 
-  bytesToBase64(bytes = new Buffer()) {
-    return bytes.toString("base64");
+  toBase64(bytes) {
+    return Buffer.from(bytes).toString("base64");
+  }
+
+  toHEX(bytes) {
+    return Buffer.from(bytes).toString("hex");
   }
 
   generateKeys() {
-    const { publicKey, secretKey } = nacl.box.keyPair();
+    return nacl.box.keyPair();
+  }
 
-    return {
-      publicKey: Buffer.from(publicKey).toString("base64"),
-      secretKey: Buffer.from(secretKey).toString("base64")
-    };
+  /**
+   *
+   * @param {Uint8Array} secretKey
+   */
+  getKeyPairFromSecretKey(secretKey) {
+    return nacl.box.keyPair.fromSecretKey(secretKey);
+  }
+
+  HMACSha256(data, key) {
+    return crypto
+      .createHmac("sha256", key)
+      .update(data)
+      .digest();
   }
 }
 
