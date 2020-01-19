@@ -1,22 +1,23 @@
 const crypto = require("crypto");
 const nacl = require("tweetnacl");
 
-/**
- *
- * @param {Number} n
- */
-const generateBytes = (n = 16) => crypto.randomBytes(n);
+class CryptoService {
+  generateBytes(n = 16) {
+    return crypto.randomBytes(n);
+  }
 
-/**
- *
- * @param {Buffer} bytes
- */
-const bytesToBase64 = bytes => bytes.toString("base64");
+  bytesToBase64(bytes = new Buffer()) {
+    return bytes.toString("base64");
+  }
 
-const generateKeys = () => nacl.box.keyPair();
+  generateKeys() {
+    const { publicKey, secretKey } = nacl.box.keyPair();
 
-module.exports = {
-  generateBytes,
-  generateKeys,
-  bytesToBase64
-};
+    return {
+      publicKey: Buffer.from(publicKey).toString("base64"),
+      secretKey: Buffer.from(secretKey).toString("base64")
+    };
+  }
+}
+
+module.exports = new CryptoService();
