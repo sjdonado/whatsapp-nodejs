@@ -1,6 +1,11 @@
 const WebSocket = require("ws");
 const { log } = require("../utils");
 
+/**
+ * WebSocketService.
+ *
+ * @author krthr
+ */
 class WebSocketService {
   constructor() {
     this.ws = new WebSocket("wss://web.whatsapp.com/ws", {
