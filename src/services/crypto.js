@@ -1,44 +1,30 @@
-const crypto = require("crypto");
-const nacl = require("tweetnacl");
-
-const AES_BLOCK_SIZE = 16;
+const crypto = require('crypto');
+const nacl = require('tweetnacl');
 
 /**
- * CryptoService
- *
- * @author krthr
+ * getKeyPairFromSecretKey
+ * @param {Number} n
+ * @return {Buffer}
  */
-class CryptoService {
-  randomBytes(n = 16) {
-    return crypto.randomBytes(n);
-  }
+const randomBytes = (n = 16) => crypto.randomBytes(n);
 
-  toBase64(bytes) {
-    return Buffer.from(bytes).toString("base64");
-  }
+/**
+ * getKeyPairFromSecretKey
+ * @param {Uint8Array} secretKey
+ * @return {{ publicKey: String, privateKey: String }}
+ */
+const getKeyPairFromSecretKey = () => nacl.box.keyPair.fromSecretKey(secretKey);
 
-  toHEX(bytes) {
-    return Buffer.from(bytes).toString("hex");
-  }
+const toBase64 = () => Buffer.from(bytes).toString('base64');
 
-  generateKeys() {
-    return nacl.box.keyPair();
-  }
+const toHEX = () => Buffer.from(bytes).toString('hex');
 
-  /**
-   *
-   * @param {Uint8Array} secretKey
-   */
-  getKeyPairFromSecretKey(secretKey) {
-    return nacl.box.keyPair.fromSecretKey(secretKey);
-  }
+const generateKeys = () => nacl.box.keyPair();
 
-  HMACSha256(data, key) {
-    return crypto
-      .createHmac("sha256", key)
-      .update(data)
-      .digest();
-  }
-}
-
-module.exports = new CryptoService();
+module.exports = {
+  randomBytes,
+  toBase64,
+  toHEX,
+  generateKeys,
+  getKeyPairFromSecretKey,
+};

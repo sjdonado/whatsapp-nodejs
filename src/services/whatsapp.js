@@ -1,6 +1,6 @@
 const WebSocketService = require("./ws");
 const cryptoService = require("./crypto");
-const { log, qrToFile } = require("../utils");
+const { log, showQRCode } = require("../utils");
 
 /**
  * WhatsApp Service
@@ -42,11 +42,19 @@ class WhatsAppService {
 
   /**
    * Handle a received message.
-   * @param {String} message
+   * @param {String | Buffer} message
    */
   handleMessage(message = "") {
-    let [tag, ...content] = message.split(",");
-    content = content.join();
+    let tag, content;
+    const isMessageBuffer = typeof message !== "string";
+
+    if (!isMessageBuffer) {
+      [tag, ...content] = message.split(",");
+      content = content.join();
+    } else {
+      [tag] = message.toString().split(",");
+      content = message.slice(tag.length + 1);
+    }
 
     if (this.messagesQueue[tag]) {
       // the server responds to a client's message
@@ -65,7 +73,8 @@ class WhatsAppService {
           break;
       }
     } else {
-      try {
+      if (!isMessageBuffer && content) {
+        console.log({ content });
         const obj = JSON.parse(content);
 
         if (obj.length) {
@@ -87,7 +96,7 @@ class WhatsAppService {
             }
           }
         }
-      } catch (e) {
+      } else {
         if (content !== "") {
           // TODO binray content, decrypt message
         }
@@ -111,16 +120,17 @@ class WhatsAppService {
     this.loginInfo.serverRef = JSON.parse(content).ref;
 
     const { publicKey, secretKey } = cryptoService.generateKeys();
+
     this.loginInfo.secretKey = Buffer.from(secretKey);
     this.loginInfo.publicKey = Buffer.from(publicKey);
 
-    const qrCode = [
+    const qrCodeText = [
       this.loginInfo.serverRef,
       this.loginInfo.publicKey.toString("base64"),
       this.loginInfo.clientId
     ].join(",");
 
-    qrToFile(qrCode);
+    showQRCode(qrCodeText);
   }
 
   /**
@@ -148,12 +158,10 @@ class WhatsAppService {
     // TODO
 
     log("PROCESS CONN");
-    log(
-      Object.keys(this.connectionOpts)
-        .map(k => `${k} = ${this.connectionOpts[k]}`)
-        .push("\n")
-        .join("\n")
+    Object.keys(this.connectionOpts).map(k =>
+      log(`${k} = ${this.connectionOpts[k]}`)
     );
+    log("");
   }
 
   /**
@@ -183,7 +191,10 @@ class WhatsAppService {
     this.ws.on("open", () => this.init());
     this.ws.on("close", () => null);
     this.ws.on("error", () => null);
-    this.ws.on("message", this.handleMessage.bind(this));
+    this.ws.on("message", data => {
+      log("MESSAGE", data.slice(0, 22));
+      this.handleMessage(data);
+    });
   }
 }
 
