@@ -2,7 +2,12 @@ const WebSocketService = require("./ws");
 const cryptoService = require("./crypto");
 const { qrToFile } = require("../utils");
 
-class WhatsappService {
+/**
+ * WhatsApp Service
+ *
+ * @author krthr
+ */
+class WhatsAppService {
   constructor() {
     this.connectionOpts = {
       clientToken: null,
@@ -28,6 +33,9 @@ class WhatsappService {
     this.messagesQueue = {};
   }
 
+  /**
+   * Send a "ping" message every 25 seconds.
+   */
   ping() {
     setTimeout(() => {
       this.ws.send("?,,");
@@ -43,68 +51,32 @@ class WhatsappService {
     let [tag, ...content] = message.split(",");
     content = content.join();
 
-    if (this.messagesQueue[tag]) {
-      // when the server responds to a client's message
-
-      const pend = this.messagesQueue[tag];
-
-      if (pend.desc === "_login") {
-        this.loginInfo.serverRef = JSON.parse(content).ref;
-        this.generateQR();
-      }
-    } else {
-      try {
-        const obj = JSON.parse(content); // read the content as a JSON.
-
-        if (obj.length) {
-          switch (obj[0]) {
-            case "Conn": {
-              this.ping();
-
-              const {
-                ref,
-                wid,
-                connected,
-                isResponse,
-                serverToken,
-                browserToken,
-                clientToken,
-                lc,
-                lg,
-                locales,
-                secret
-              } = obj[1];
-
-              this.connectionOpts.clientToken = clientToken;
-              this.connectionOpts.serverToken = serverToken;
-              this.connectionOpts.browserToken = browserToken;
-              this.connectionOpts.me = wid;
-
-              console.log(this.connectionOpts);
-
-              break;
-            }
-            case "Stream": {
-              break;
-            }
-            case "Props": {
-              break;
-            }
-          }
-        }
-      } catch (e) {
-        // TODO
-        console.log(e);
-      }
-    }
+    // TODO
   }
 
-  generateQR() {
+  /**
+   * Generate the QR image.
+   *
+   * 1. Get the `serverRef` from the content of the response
+   * 2. Generate public and secret keys
+   * 3. Concatenate the following values with comma:
+   *    - serverRef
+   *    - `Base64(publicKey)`
+   *    - clientId
+   *
+   * @param {String} content
+   */
+  generateQR(content) {
+    this.loginInfo.serverRef = JSON.parse(content).ref;
+
     const { publicKey, secretKey } = cryptoService.generateKeys();
     this.loginInfo.secretKey = secretKey;
     this.loginInfo.publicKey = publicKey;
 
-    const qrCode = `${this.loginInfo.serverRef},${this.loginInfo.publicKey},${this.loginInfo.clientId}`;
+    const qrCode =
+      this.loginInfo.serverRef +
+      cryptoService.toBase64(this.loginInfo.publicKey) +
+      this.loginInfo.clientId;
 
     qrToFile(qrCode);
   }
@@ -113,25 +85,21 @@ class WhatsappService {
    * Initialize the communication with the API.
    *
    * 1. Generate a new Client ID (16 random bytes converted to Base64)
-   * 2. Send the message `<message_id>,["admin","init",[0,4,315],["Windows","Chrome","10"],"<client_id>",true]`
+   * 2. Send the message `<message_tag>,["admin","init",[0,4,315],["Windows","Chrome","10"],"<client_id>",true]`
    */
   init() {
-    this.loginInfo.clientId = cryptoService.generateBytes().toString("base64");
-
+    this.loginInfo.clientId = cryptoService.randomBytes().toString("base64");
     const messageTag = Date.now();
-
-    this.messagesQueue[messageTag] = {
-      desc: "_login"
-    };
-
     this.ws.send(
-      `${messageTag},["admin","init",[0,4,315],["Wilson","Chrome","10"],"${this.connectionOpts.clientId}",true]`
+      `${messageTag},["admin","init",[0,4,315],["Windows","Chrome","10"],"${this.loginInfo.clientId}",true]`
     );
   }
 
+  /**
+   * Start the websocket connection and start listening the ws events.
+   */
   start() {
     this.ws = new WebSocketService();
-
     this.ws.on("open", () => this.init());
     this.ws.on("close", () => null);
     this.ws.on("error", () => null);
@@ -139,4 +107,4 @@ class WhatsappService {
   }
 }
 
-module.exports = WhatsappService;
+module.exports = WhatsAppService;
