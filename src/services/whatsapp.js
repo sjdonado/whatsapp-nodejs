@@ -41,7 +41,7 @@ class WhatsAppService {
    */
   ping() {
     setTimeout(() => {
-      this.ws.send("?,,");
+      this.ws.send('?,,');
       this.ping();
     }, 25000);
   }
@@ -50,8 +50,8 @@ class WhatsAppService {
    * Handle a received message.
    * @param {String} message
    */
-  handleMessage(message = "") {
-    let [tag, ...content] = message.split(",");
+  handleMessage(message = '') {
+    let [tag, ...content] = message.split(',');
     content = content.join();
 
     if (this.messagesQueue[tag]) {
@@ -120,6 +120,7 @@ class WhatsAppService {
       publicKey,
       secretKey,
     } = cryptoService.generateKeys();
+
     this.loginInfo.secretKey = Buffer.from(secretKey);
     this.loginInfo.publicKey = Buffer.from(publicKey);
 
@@ -143,7 +144,7 @@ class WhatsAppService {
     serverToken,
     sharedSecret,
     sharedSecretExpanded,
-    wid
+    wid,
   }) {
     this.connectionOpts.clientToken = clientToken;
     this.connectionOpts.serverToken = serverToken;
