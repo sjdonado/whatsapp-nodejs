@@ -1,6 +1,6 @@
 const WebSocketService = require("./ws");
 const cryptoService = require("./crypto");
-const { qrToFile } = require("../utils");
+const { log, qrToFile } = require("../utils");
 
 /**
  * WhatsApp Service
@@ -51,7 +51,51 @@ class WhatsAppService {
     let [tag, ...content] = message.split(",");
     content = content.join();
 
-    // TODO
+    if (this.messagesQueue[tag]) {
+      // the server responds to a client's message
+
+      const pend = this.messagesQueue[tag];
+
+      switch (pend.desc) {
+        case "_login": {
+          this.generateQR(content);
+          break;
+        }
+        case "_status": // TODO
+          break;
+
+        case "_restoresession": // TODO
+          break;
+      }
+    } else {
+      try {
+        const obj = JSON.parse(content);
+
+        if (obj.length) {
+          // JSON content
+
+          const [name, payload] = obj;
+
+          switch (name) {
+            case "Conn": {
+              this.ping();
+              this.processConn(payload);
+              break;
+            }
+            case "Stream": {
+              break;
+            }
+            case "Props": {
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        if (content !== "") {
+          // TODO binray content, decrypt message
+        }
+      }
+    }
   }
 
   /**
@@ -70,15 +114,49 @@ class WhatsAppService {
     this.loginInfo.serverRef = JSON.parse(content).ref;
 
     const { publicKey, secretKey } = cryptoService.generateKeys();
-    this.loginInfo.secretKey = secretKey;
-    this.loginInfo.publicKey = publicKey;
+    this.loginInfo.secretKey = Buffer.from(secretKey);
+    this.loginInfo.publicKey = Buffer.from(publicKey);
 
-    const qrCode =
-      this.loginInfo.serverRef +
-      cryptoService.toBase64(this.loginInfo.publicKey) +
-      this.loginInfo.clientId;
+    const qrCode = [
+      this.loginInfo.serverRef,
+      this.loginInfo.publicKey.toString("base64"),
+      this.loginInfo.clientId
+    ].join(",");
 
     qrToFile(qrCode);
+  }
+
+  /**
+   *
+   * @param {Object} obj
+   */
+  processConn({
+    browserToken,
+    clientToken,
+    secret,
+    serverToken,
+    sharedSecret,
+    sharedSecretExpanded,
+    wid
+  }) {
+    this.connectionOpts.clientToken = clientToken;
+    this.connectionOpts.serverToken = serverToken;
+    this.connectionOpts.browserToken = browserToken;
+    this.connectionOpts.me = wid;
+
+    this.connectionOpts.secret = Buffer.from(secret, "base64");
+    // TODO this.connectionOpts.sharedSecret
+    // TODO this.connectionOpts.sharedSecretExpanded
+
+    // TODO
+
+    log("PROCESS CONN");
+    log(
+      Object.keys(this.connectionOpts)
+        .map(k => `${k} = ${this.connectionOpts[k]}`)
+        .push("\n")
+        .join("\n")
+    );
   }
 
   /**
@@ -90,6 +168,11 @@ class WhatsAppService {
   init() {
     this.loginInfo.clientId = cryptoService.randomBytes().toString("base64");
     const messageTag = Date.now();
+
+    this.messagesQueue[messageTag] = {
+      desc: "_login"
+    };
+
     this.ws.send(
       `${messageTag},["admin","init",[0,4,315],["Windows","Chrome","10"],"${this.loginInfo.clientId}",true]`
     );
