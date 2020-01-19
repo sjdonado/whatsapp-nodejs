@@ -74,7 +74,6 @@ class WhatsAppService {
       }
     } else {
       if (!isMessageBuffer && content) {
-        console.log({ content });
         const obj = JSON.parse(content);
 
         if (obj.length) {
