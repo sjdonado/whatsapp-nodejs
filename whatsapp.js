@@ -1,49 +1,142 @@
-const { EventEmitter } = require("events");
-const WebSocket = require("ws");
-const { log } = require("./utils");
+const WebSocketService = require("./ws");
+const cryptoService = require("./crypto");
+const { qrToFile } = require("./utils");
 
-const PING = "?,,";
+class WhatsappService {
+  constructor() {
+    this.connectionOpts = {
+      clientToken: null,
+      serverId: null,
+      serverToken: null,
+      browserToken: null,
+      me: null,
+      secret: null,
+      sharedSecret: null
+    };
 
-/**
- *
- */
-class WhatsApp extends EventEmitter {
-  constructor(clientId) {
-    super();
+    this.loginInfo = {
+      clientId: null,
+      serverRef: null,
+      publicKey: null,
+      secretKey: null,
+      key: {
+        encKey: null,
+        macKey: null
+      }
+    };
 
-    this.ws = new WebSocket("wss://web.whatsapp.com/ws", {
-      headers: { Origin: "https://web.whatsapp.com" }
-    });
+    this.messagesQueue = {};
+  }
 
-    this.ws.on("open", () => {
-      log("OPEN");
-      this.send(
-        `${Date.now()},["admin","init",[0,4,315],["Windows","Chrome","10"],"${clientId}",true]`
-      );
-      this.makePing();
-    });
+  ping() {
+    setTimeout(() => {
+      this.ws.send("?,,");
+      this.ping();
+    }, 25000);
+  }
 
-    this.ws.on(
-      "message",
-      data => log("MESSAGE", data) && this.emit("message", data)
+  /**
+   * Handle a received message.
+   * @param {String} message
+   */
+  handleMessage(message = "") {
+    let [tag, ...content] = message.split(",");
+    content = content.join();
+
+    if (this.messagesQueue[tag]) {
+      // when the server responds to a client's message
+
+      const pend = this.messagesQueue[tag];
+
+      if (pend.desc === "_login") {
+        this.loginInfo.serverRef = JSON.parse(content).ref;
+        this.generateQR();
+      }
+    } else {
+      try {
+        const obj = JSON.parse(content); // read the content as a JSON.
+
+        if (obj.length) {
+          switch (obj[0]) {
+            case "Conn": {
+              this.ping();
+
+              const {
+                ref,
+                wid,
+                connected,
+                isResponse,
+                serverToken,
+                browserToken,
+                clientToken,
+                lc,
+                lg,
+                locales,
+                secret
+              } = obj[1];
+
+              this.connectionOpts.clientToken = clientToken;
+              this.connectionOpts.serverToken = serverToken;
+              this.connectionOpts.browserToken = browserToken;
+              this.connectionOpts.me = wid;
+
+              console.log(this.connectionOpts)
+
+              break;
+            }
+            case "Stream": {
+              break;
+            }
+            case "Props": {
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        // TODO
+        console.log(e);
+      }
+    }
+  }
+
+  generateQR() {
+    const { publicKey, secretKey } = cryptoService.generateKeys();
+    this.loginInfo.secretKey = secretKey;
+    this.loginInfo.publicKey = publicKey;
+
+    const qrCode = `${this.loginInfo.serverRef},${this.loginInfo.publicKey},${this.loginInfo.clientId}`;
+
+    qrToFile(qrCode);
+  }
+
+  /**
+   * Initialize the communication with the API.
+   *
+   * 1. Generate a new Client ID (16 random bytes converted to Base64)
+   * 2. Send the message `<message_id>,["admin","init",[0,4,315],["Windows","Chrome","10"],"<client_id>",true]`
+   */
+  init() {
+    this.loginInfo.clientId = cryptoService.generateBytes().toString("base64");
+
+    const messageTag = Date.now();
+
+    this.messagesQueue[messageTag] = {
+      desc: "_login"
+    };
+
+    this.ws.send(
+      `${messageTag},["admin","init",[0,4,315],["Wilson","Chrome","10"],"${this.connectionOpts.clientId}",true]`
     );
-
-    this.ws.on("close", () => log("CLOSE"));
-    this.ws.on("ping", () => log("PING"));
-    this.ws.on("pong", () => log("PONG"));
-    this.ws.on("unexpected-response", () => log("UNEXPECTED RESPONSE"));
-    this.ws.on("upgrade", () => log("UPGRADE"));
   }
 
-  send(data) {
-    log("SENDING", data) && this.ws.send(data);
-  }
+  start() {
+    this.ws = new WebSocketService();
 
-  makePing() {
-    setTimeout(() => this.send(PING) && this.makePing(), 10000);
+    this.ws.on("open", () => this.init());
+    this.ws.on("close", () => null);
+    this.ws.on("error", () => null);
+    this.ws.on("message", this.handleMessage.bind(this));
   }
 }
 
-module.exports = {
-  WhatsApp
-};
+module.exports = WhatsappService;
