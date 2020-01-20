@@ -120,8 +120,8 @@ class WhatsAppService {
 
     const { publicKey, secretKey } = cryptoService.generateKeys();
 
-    this.loginInfo.secretKey = Buffer.from(secretKey);
-    this.loginInfo.publicKey = Buffer.from(publicKey);
+    this.loginInfo.secretKey = secretKey;
+    this.loginInfo.publicKey = publicKey;
 
     const qrCodeText = [
       this.loginInfo.serverRef,
@@ -143,7 +143,7 @@ class WhatsAppService {
     serverToken,
     sharedSecret,
     sharedSecretExpanded,
-    wid
+    wid,
   }) {
     this.connectionOpts.clientToken = clientToken;
     this.connectionOpts.serverToken = serverToken;
@@ -155,20 +155,25 @@ class WhatsAppService {
     // Key generation
     this.connectionOpts.sharedSecret = cryptoService.getSharedKey(
         this.loginInfo.secretKey,
-        secret.slice(0, 32),
+        this.connectionOpts.secret.slice(0, 32),
     );
+
+    console.log('sharedSecret', this.connectionOpts.sharedSecret.toString('hex'), this.connectionOpts.sharedSecret.length);
 
     this.connectionOpts.sharedSecretExpanded = cryptoService.kdfExpand(
         this.connectionOpts.sharedSecret,
         80,
     );
 
-    const hmacValidation = cryptoService.hmacSha256(
+    console.log('sharedSecretExpanded', this.connectionOpts.sharedSecretExpanded.toString('hex'), this.connectionOpts.sharedSecretExpanded.length);
+
+    const hmacValidation = cryptoService.hmacSHA256(
         this.connectionOpts.sharedSecretExpanded.slice(32, 64),
         this.connectionOpts.secret.slice(0, 32) +
           this.connectionOpts.secret.slice(64),
     );
 
+    console.log('hmacValidation', hmacValidation.toString('hex'), ' === ', this.connectionOpts.secret.slice(32, 64).toString('hex'));
     if (hmacValidation != this.connectionOpts.secret.slice(32, 64)) {
       throw new Error('Hmac mismatch');
     }
@@ -179,8 +184,8 @@ class WhatsAppService {
         this.connectionOpts.secret.slice(64),
     );
 
-    this.loginInfo.encKey = Buffer.from(keysEncrypted.slice(0, 32));
-    this.loginInfo.macKey = Buffer.from(keysEncrypted.slice(32, 64));
+    this.loginInfo.encKey = keysEncrypted.slice(0, 32);
+    this.loginInfo.macKey = keysEncrypted.slice(32, 64);
 
     console.log(' ---------- ENCKEY & MACKEY -----------');
     console.log(this.loginInfo.keys);

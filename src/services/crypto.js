@@ -29,21 +29,27 @@ const hmacSHA256 = (key, sign = '') => crypto.createHmac('sha256', key)
  * @param {Buffer} secret
  * @param {Number} length
  * @param {String | Buffer} info
+ * @return {Buffer}
  */
 const kdfExpand = (secret, length, info = '') => {
-  const initKey = new Buffer(32).fill('0');
-  const key = hmacSHA256(initKey, secret);
-  const HASH_LENGTH = 256;
+  const key = hmacSHA256(new Buffer(32).fill('\0'), secret);
 
-  const output = new Buffer(length);
-  let prev = '';
+  let prev = new Buffer(0);
+  info = new Buffer(info);
   let input;
+  const buffers = [];
 
-  for (let i = 0; i < Math.ceil(length / HASH_LENGTH); i++) {
-    input = hmacSHA256(key, prev + info + (0x01 * (i+1)));
-    prev = input;
-    output.write(input, HASH_LENGTH * i, HASH_LENGTH, 'binary');
+  for (let i = 0; i < Math.ceil(length / 32); i++) {
+    input = Buffer.concat([
+      prev,
+      info,
+      Buffer.from(String.fromCharCode(i + 1)),
+    ]);
+    prev = hmacSHA256(key, input);
+    buffers.push(prev);
   }
+
+  return Buffer.concat(buffers, length);
 };
 
 /**
@@ -52,22 +58,28 @@ const kdfExpand = (secret, length, info = '') => {
  */
 const generateKeys = () => {
   const secret = randomBytes(32);
+  console.log(' --------- GENERATE KEYS ----------');
+
+  curve.makeSecretKey(secret);
+  const publicKey = curve.derivePublicKey(secret);
+
+  console.log('secretKey', secret.toString('hex'), secret.length);
+  console.log('publicKey', publicKey.toString('hex'), publicKey.length);
 
   return {
-    privateKey: curve.makeSecretKey(secret),
-    publicKey: curve.derivePublicKey(secret),
+    secretKey: secret,
+    publicKey,
   };
 };
 
 /**
  * getSharedKey
- * @param {Buffer} privateKey
+ * @param {Buffer} secretKey
  * @param {Buffer} publicKey
  * @return {Buffer}
  */
-const getSharedKey = (privateKey, publicKey) => curve
-    .deriveSharedSecret(Buffer.from(privateKey), Buffer.from(publicKey));
-
+const getSharedKey = (secretKey, publicKey) => curve
+    .deriveSharedSecret(secretKey, publicKey);
 
 /**
  * aesEncrypt

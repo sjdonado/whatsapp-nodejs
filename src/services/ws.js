@@ -1,5 +1,5 @@
-const WebSocket = require("ws");
-const { log } = require("../utils");
+const WebSocket = require('ws');
+const {log } = require('../utils');
 
 /**
  * WebSocketService.
