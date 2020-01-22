@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const curve = require('curve25519-n');
+const Curve = require('curve25519-n');
 
 const CIPHER_ALGORITHM = 'aes-256-cbc';
 
@@ -10,9 +10,9 @@ const CIPHER_ALGORITHM = 'aes-256-cbc';
  */
 const randomBytes = (n = 16) => crypto.randomBytes(n);
 
-const toBase64 = () => Buffer.from(bytes).toString('base64');
+const toBase64 = (bytes) => Buffer.from(bytes).toString('base64');
 
-const toHEX = () => Buffer.from(bytes).toString('hex');
+const toHEX = (bytes) => Buffer.from(bytes).toString('hex');
 
 /**
  * HmacSHA256
@@ -21,8 +21,8 @@ const toHEX = () => Buffer.from(bytes).toString('hex');
  * @return {Buffer}
  */
 const hmacSHA256 = (key, sign = '') => crypto.createHmac('sha256', key)
-    .update(sign)
-    .digest();
+  .update(sign)
+  .digest();
 
 /**
  * kdfExpand
@@ -32,17 +32,16 @@ const hmacSHA256 = (key, sign = '') => crypto.createHmac('sha256', key)
  * @return {Buffer}
  */
 const kdfExpand = (secret, length, info = '') => {
-  const key = hmacSHA256(new Buffer(32).fill('\0'), secret);
+  const key = hmacSHA256(Buffer.alloc(32).fill('\0'), secret);
 
-  let prev = new Buffer(0);
-  info = new Buffer(info);
+  let prev = Buffer.alloc(0);
   let input;
   const buffers = [];
 
-  for (let i = 0; i < Math.ceil(length / 32); i++) {
+  for (let i = 0; i < Math.ceil(length / 32); i += 1) {
     input = Buffer.concat([
       prev,
-      info,
+      Buffer.from(info),
       Buffer.from(String.fromCharCode(i + 1)),
     ]);
     prev = hmacSHA256(key, input);
@@ -57,11 +56,11 @@ const kdfExpand = (secret, length, info = '') => {
  * @return {{ publicKey: Buffer, privateKey: Buffer }}
  */
 const generateKeys = () => {
-  const secret = randomBytes(32);
   console.log(' --------- GENERATE KEYS ----------');
 
-  curve.makeSecretKey(secret);
-  const publicKey = curve.derivePublicKey(secret);
+  const secret = curve.makeSecretKey(randomBytes(32));
+  // const secret = Curve.makeSecretKey(Buffer.from('10ae321d56dd59c482541c5866a92d5af32f88e7a80f71816e4f6bbc7ccf9142', 'hex'));
+  const publicKey = Curve.derivePublicKey(secret);
 
   console.log('secretKey', secret.toString('hex'), secret.length);
   console.log('publicKey', publicKey.toString('hex'), publicKey.length);
@@ -78,8 +77,7 @@ const generateKeys = () => {
  * @param {Buffer} publicKey
  * @return {Buffer}
  */
-const getSharedKey = (secretKey, publicKey) => curve
-    .deriveSharedSecret(secretKey, publicKey);
+const getSharedKey = (secretKey, publicKey) => Curve.deriveSharedSecret(secretKey, publicKey);
 
 /**
  * aesEncrypt
@@ -87,15 +85,15 @@ const getSharedKey = (secretKey, publicKey) => curve
  * @param {String} plainText
  * @return {Buffer}
  */
-const aesEncrypt = (key, plainText) => {
+const aesEncrypt = (key, plaintext) => {
   if (typeof plaintext !== 'string' || !plaintext) {
     throw new TypeError('Provided "plaintext" must be a non-empty string');
   }
   const IV = randomBytes(16);
   const cipher = crypto.createCipheriv(CIPHER_ALGORITHM, hmacSHA256(key), IV);
 
-  const ciphertext = cipher.update(new Buffer(plaintext));
-  const encrypted = Buffer.concat([iv, ciphertext, cipher.final()]);
+  const ciphertext = cipher.update(Buffer.from(plaintext));
+  const encrypted = Buffer.concat([IV, ciphertext, cipher.final()]);
 
   return encrypted;
 };
@@ -115,9 +113,9 @@ const aesDecrypt = (key, encrypted) => {
 
   const IV = input.slice(0, 16);
   const decipher = crypto.createDecipheriv(
-      CIPHER_ALGORITHM,
-      hmacSHA256(key),
-      IV,
+    CIPHER_ALGORITHM,
+    hmacSHA256(key),
+    IV,
   );
 
   const ciphertext = input.slice(16);

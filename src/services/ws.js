@@ -1,5 +1,5 @@
 const WebSocket = require('ws');
-const {log } = require('../utils');
+const { log } = require('../utils');
 
 /**
  * WebSocketService.
@@ -30,7 +30,7 @@ class WebSocketService {
    * @param {any} data
    */
   send(data) {
-    log("SEND", data);
+    log('SEND', data);
     this.ws.send(data);
   }
 }

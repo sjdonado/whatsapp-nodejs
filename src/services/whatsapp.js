@@ -1,6 +1,6 @@
-const WebSocketService = require("./ws");
-const cryptoService = require("./crypto");
-const { log, showQRCode } = require("../utils");
+const WebSocketService = require('./ws');
+const cryptoService = require('./crypto');
+const { log, showQRCode } = require('../utils');
 
 /**
  * WhatsApp Service
@@ -16,7 +16,7 @@ class WhatsAppService {
       browserToken: null,
       me: null,
       secret: null,
-      sharedSecret: null
+      sharedSecret: null,
     };
 
     this.loginInfo = {
@@ -26,8 +26,8 @@ class WhatsAppService {
       secretKey: null,
       key: {
         encKey: null,
-        macKey: null
-      }
+        macKey: null,
+      },
     };
 
     this.messagesQueue = {};
@@ -37,22 +37,22 @@ class WhatsAppService {
    * Send a "ping" message every 25 seconds.
    */
   ping() {
-    setTimeout(() => this.ws.send("?,,") && this.ping(), 25000);
+    setTimeout(() => this.ws.send('?,,') && this.ping(), 25000);
   }
 
   /**
    * Handle a received message.
    * @param {String | Buffer} message
    */
-  handleMessage(message = "") {
-    let tag, content;
-    const isMessageBuffer = typeof message !== "string";
+  handleMessage(message = '') {
+    let tag; let content;
+    const isMessageBuffer = typeof message !== 'string';
 
     if (!isMessageBuffer) {
-      [tag, ...content] = message.split(",");
+      [tag, ...content] = message.split(',');
       content = content.join();
     } else {
-      [tag] = message.toString().split(",");
+      [tag] = message.toString().split(',');
       content = message.slice(tag.length + 1);
     }
 
@@ -62,44 +62,43 @@ class WhatsAppService {
       const pend = this.messagesQueue[tag];
 
       switch (pend.desc) {
-        case "_login": {
+        case '_login': {
           this.generateQR(content);
           break;
         }
-        case "_status": // TODO
+        case '_status': // TODO
           break;
-
-        case "_restoresession": // TODO
+        case '_restoresession': // TODO
+          break;
+        default:
           break;
       }
-    } else {
-      if (!isMessageBuffer && content) {
-        const obj = JSON.parse(content);
+    } else if (!isMessageBuffer && content) {
+      const obj = JSON.parse(content);
 
-        if (obj.length) {
-          // JSON content
+      if (obj.length) {
+        // JSON content
 
-          const [name, payload] = obj;
+        const [name, payload] = obj;
 
-          switch (name) {
-            case "Conn": {
-              this.ping();
-              this.processConn(payload);
-              break;
-            }
-            case "Stream": {
-              break;
-            }
-            case "Props": {
-              break;
-            }
+        switch (name) {
+          case 'Conn': {
+            this.ping();
+            this.processConn(payload);
+            break;
           }
-        }
-      } else {
-        if (content !== "") {
-          // TODO binray content, decrypt message
+          case 'Stream': {
+            break;
+          }
+          case 'Props': {
+            break;
+          }
+          default:
+            break;
         }
       }
+    } else if (content !== '') {
+      // TODO binray content, decrypt message
     }
   }
 
@@ -125,9 +124,9 @@ class WhatsAppService {
 
     const qrCodeText = [
       this.loginInfo.serverRef,
-      this.loginInfo.publicKey.toString("base64"),
-      this.loginInfo.clientId
-    ].join(",");
+      this.loginInfo.publicKey.toString('base64'),
+      this.loginInfo.clientId,
+    ].join(',');
 
     showQRCode(qrCodeText);
   }
@@ -152,36 +151,38 @@ class WhatsAppService {
 
     this.connectionOpts.secret = Buffer.from(secret, 'base64');
 
+    console.log('secret', this.connectionOpts.secret.slice(0, 32).toString('hex'));
+
     // Key generation
     this.connectionOpts.sharedSecret = cryptoService.getSharedKey(
-        this.loginInfo.secretKey,
-        this.connectionOpts.secret.slice(0, 32),
+      this.loginInfo.secretKey,
+      this.connectionOpts.secret.slice(0, 32),
     );
 
     console.log('sharedSecret', this.connectionOpts.sharedSecret.toString('hex'), this.connectionOpts.sharedSecret.length);
 
     this.connectionOpts.sharedSecretExpanded = cryptoService.kdfExpand(
-        this.connectionOpts.sharedSecret,
-        80,
+      this.connectionOpts.sharedSecret,
+      80,
     );
 
     console.log('sharedSecretExpanded', this.connectionOpts.sharedSecretExpanded.toString('hex'), this.connectionOpts.sharedSecretExpanded.length);
 
     const hmacValidation = cryptoService.hmacSHA256(
-        this.connectionOpts.sharedSecretExpanded.slice(32, 64),
-        this.connectionOpts.secret.slice(0, 32) +
-          this.connectionOpts.secret.slice(64),
+      this.connectionOpts.sharedSecretExpanded.slice(32, 64),
+      this.connectionOpts.secret.slice(0, 32)
+          + this.connectionOpts.secret.slice(64),
     );
 
     console.log('hmacValidation', hmacValidation.toString('hex'), ' === ', this.connectionOpts.secret.slice(32, 64).toString('hex'));
-    if (hmacValidation != this.connectionOpts.secret.slice(32, 64)) {
+    if (hmacValidation !== this.connectionOpts.secret.slice(32, 64)) {
       throw new Error('Hmac mismatch');
     }
 
-    const keysEncrypted = aesDecrypt(
-        this.connectionOpts.sharedSecretExpanded.slice(0, 32),
-        this.connectionOpts.sharedSecretExpanded.slice(64) +
-        this.connectionOpts.secret.slice(64),
+    const keysEncrypted = cryptoService.aesDecrypt(
+      this.connectionOpts.sharedSecretExpanded.slice(0, 32),
+      this.connectionOpts.sharedSecretExpanded.slice(64)
+        + this.connectionOpts.secret.slice(64),
     );
 
     this.loginInfo.encKey = keysEncrypted.slice(0, 32);
@@ -190,11 +191,9 @@ class WhatsAppService {
     console.log(' ---------- ENCKEY & MACKEY -----------');
     console.log(this.loginInfo.keys);
 
-    log("PROCESS CONN");
-    Object.keys(this.connectionOpts).map(k =>
-      log(`${k} = ${this.connectionOpts[k]}`)
-    );
-    log("");
+    log('PROCESS CONN');
+    Object.keys(this.connectionOpts).map((k) => log(`${k} = ${this.connectionOpts[k]}`));
+    log('');
   }
 
   /**
@@ -204,15 +203,15 @@ class WhatsAppService {
    * 2. Send the message `<message_tag>,["admin","init",[0,4,315],["Windows","Chrome","10"],"<client_id>",true]`
    */
   init() {
-    this.loginInfo.clientId = cryptoService.randomBytes().toString("base64");
+    this.loginInfo.clientId = cryptoService.randomBytes().toString('base64');
     const messageTag = Date.now();
 
     this.messagesQueue[messageTag] = {
-      desc: "_login"
+      desc: '_login',
     };
 
     this.ws.send(
-      `${messageTag},["admin","init",[0,4,315],["Windows","Chrome","10"],"${this.loginInfo.clientId}",true]`
+      `${messageTag},["admin","init",[0,4,315],["Windows","Chrome","10"],"${this.loginInfo.clientId}",true]`,
     );
   }
 
@@ -221,11 +220,11 @@ class WhatsAppService {
    */
   start() {
     this.ws = new WebSocketService();
-    this.ws.on("open", () => this.init());
-    this.ws.on("close", () => null);
-    this.ws.on("error", () => null);
-    this.ws.on("message", data => {
-      log("MESSAGE", data.slice(0, 22));
+    this.ws.on('open', () => this.init());
+    this.ws.on('close', () => null);
+    this.ws.on('error', () => null);
+    this.ws.on('message', (data) => {
+      log('MESSAGE', data.slice(0, 22));
       this.handleMessage(data);
     });
   }
